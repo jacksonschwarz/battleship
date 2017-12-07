@@ -1,0 +1,479 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Battleship Game</title>
+    <style>
+      .gridSquare{
+        padding-left:10px;
+        border:1px solid black;
+        height: 25px;
+        width:25px;
+      }
+      /* .gridSquare:hover{
+        background-color:red;
+      } */
+      #shipPart{
+        height: 25px;
+        width:25px;
+        background-color:lightgreen;
+      }
+      #shipContainer{
+        display:inline-flex;
+      }
+      .shipSelected{
+        box-shadow:10px 10px 5px black;
+      }
+      .gridSelected{
+        background-color:lightgray
+      }
+      .shipOnGrid{
+        background-color:gray;
+      }
+      #attackGrid .gridSquare:hover{
+        border:1px solid red;
+        border-radius: 100%;
+      }
+      .shipHit{
+        background-color:red;
+      }
+      .attackHit{
+        background-color: red
+      }
+      .attackMiss{
+        background-color:lightgray;
+      }
+      .disabled{
+        background-color:gray;
+      }
+      #readyText{
+        color:green;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Battleship Game</h1>
+    <p>Press "r" to rotate your ship</p>
+    <p id="readyText"></p>
+    <table id="attackGrid">
+      <tr id="firstAttackRow">
+        <td class="gridSquare"></td>
+      </tr>
+    </table>
+    <table id="grid">
+      <tr id="firstRow">
+        <td class="gridSquare"></td>
+      </tr>
+    </table>
+    <table>
+      <tr>
+        <td>
+          <p>Aircraft Carrier</p>
+            <table class="ship" id="aircraftCarrier">
+                <tr>
+                  <td id="shipPart"></td>
+                </tr>
+                <tr>
+                    <td id="shipPart"></td>
+                </tr>
+                <tr>
+                    <td id="shipPart"></td>
+                </tr>
+                <tr>
+                    <td id="shipPart"></td>
+                </tr>
+                <tr>
+                    <td id="shipPart"></td>
+                </tr>
+              </table>
+        </td>
+         <td>
+            <p>Battleship</p>
+            <table class="ship" id="battleship">
+                <tr>
+                    <td id="shipPart"></td>
+                </tr>
+                <tr>
+                    <td id="shipPart"></td>
+                </tr>
+                <tr>
+                    <td id="shipPart"></td>
+                </tr>
+                <tr>
+                    <td id="shipPart"></td>
+                </tr>
+            </table>
+         </td>
+         <td>
+            <p>Submarine</p>
+            <table class="ship" id="submarine">
+                <tr>
+                    <td id="shipPart"></td>
+                </tr>
+                <tr>
+                    <td id="shipPart"></td>
+                </tr>
+                <tr>
+                    <td id="shipPart"></td>
+                </tr>
+            </table>
+         </td>
+          <td>
+              <p>Cruiser</p>
+              <table class="ship" id="cruiser">
+                  <tr>
+                      <td id="shipPart"></td>
+                  </tr>
+                  <tr>
+                      <td id="shipPart"></td>
+                  </tr>
+                  <tr>
+                      <td id="shipPart"></td>
+                  </tr>
+              </table>
+          </td>
+           <td>
+              <p>Destroyer</p>
+              <table class="ship" id="destroyer">
+                  <tr>
+                      <td id="shipPart"></td>
+                  </tr>
+                  <tr>
+                      <td id="shipPart"></td>
+                  </tr>
+              </table>
+           </td>
+           
+      </tr>
+    </table>
+ 
+  </body>
+</html>
+<script src="/socket.io/socket.io.js"></script>
+<script src=" https://code.jquery.com/jquery-3.2.1.min.js"></script>
+<script>
+  var socket = io("/player1");
+  let rows=["A","B","C","D","E","F","G","H","I","J"]
+  let columns=["1","2","3","4","5","6","7","8","9","10"]
+  //Initializes the grid that you will place the ship upon
+  let initGrid=function(){
+    for(let i=0;i<rows.length;i++){
+      $("#grid").append(`<tr id="${rows[i]}"><td class="gridSquare"><strong>${rows[i]}</strong></td></tr>`)
+    }
+    for(let i=0;i<columns.length;i++){
+      $("#firstRow").append(`<td class="gridSquare" id="${columns[i]}"><strong>${columns[i]}</strong></td>`)
+    }
+    for(let i=0;i<rows.length;i++){
+        for(let j=0;j<columns.length;j++){
+          $(`#${rows[i]}`).append(`<td class="gridSquare" id="${columns[j]}"></td>`)
+        }
+      }
+  }
+
+  let initShips=function(){
+
+  }
+  //how long the ship is(for selection purposes)
+  let shipLength=0;
+  //true is HORIZONTAL, false is VERTICAL
+  let shipDirection=true;
+  //the name of the ship that is going to be placed. 
+  let shipSelected="";
+  //Selects the ship that you want to place on the board. Initializes the shipLength variable
+  let selectShip=function(){
+    $(".ship").click(function(){
+      if($(this)[0].classList[1] == "shipSelected"){
+        $(this).removeClass("shipSelected");
+        $(".shipSelected").removeClass("shipSelected");
+      }
+      else{
+        $(this).addClass("shipSelected");
+      }
+      shipSelected=$(this)[0].id;
+      switch($(this)[0].id){
+      case "aircraftCarrier":
+        shipLength=5;
+        break;
+      case "battleship":
+        shipLength=4;
+        break;
+      case "cruiser":
+        shipLength=3;
+        break;
+      case "submarine":
+        shipLength=3;
+        break;
+      case "destroyer":
+        shipLength=2;
+        break;
+    }
+    })
+   
+  }
+  //Gets the element at the row and column specified. 
+  let getSquare=function(checkRow, checkColumn){
+    let column=columns.indexOf(checkColumn)+1
+    let row=rows.indexOf(checkRow)+1;
+    let startingLocation=[row, column];
+    let selectedSquare=$("#grid")[0].children[0].children[row].children[column]
+    return selectedSquare;
+  }
+  //Place the ship on the selected tile in the specified direction. 
+  let placeShip=function(){
+    //hover over the amount of squares as according to shipLength
+    $("#grid .gridSquare").hover(function(){
+      let column=columns.indexOf($(this)[0].id)
+      let row=rows.indexOf($(this)[0].parentElement.id);
+      let startingLocation=getSquare($(this)[0].parentElement.id,$(this)[0].id)
+      if(shipDirection){
+        let nextElement=$(startingLocation);
+        for(let i=0;i<shipLength;i++){
+          nextElement.addClass("gridSelected");
+          nextElement=$(nextElement).next();
+        }
+      }
+      else{
+        let nextElement=$(startingLocation);
+        for(let i=0;i<shipLength;i++){
+          nextElement.addClass("gridSelected");
+          nextRow=$($(nextElement)[0].parentElement);
+          nextElement=$(nextRow).prev().find("#"+(column+1))
+        }
+      }
+    },
+    function(){
+      let column=columns.indexOf($(this)[0].id)
+      let row=rows.indexOf($(this)[0].parentElement.id);
+      let startingLocation=getSquare($(this)[0].parentElement.id,$(this)[0].id)
+      if(shipDirection){
+        let nextElement=$(startingLocation);
+        for(let i=0;i<shipLength-1;i++){
+          nextElement=$(nextElement).next();
+          nextElement.removeClass("gridSelected");
+        }
+      }
+      else{
+        let nextElement=$(startingLocation);
+        for(let i=0;i<shipLength;i++){
+          nextElement.removeClass("gridSelected");
+          nextRow=$($(nextElement)[0].parentElement);
+          nextElement=$(nextRow).prev().find("#"+(column+1))
+        }
+      }
+      $(startingLocation).removeClass("gridSelected");
+    }
+    )
+    $("#grid .gridSquare").click(function(){
+        if(shipDirection){
+          let startingLocation=getSquare($(this)[0].parentElement.id,$(this)[0].id)
+          let nextElement=$(startingLocation);
+          for(let i=0;i<shipLength;i++){
+            nextElement.addClass("shipOnGrid");
+            let row=rows.indexOf($(nextElement)[0].parentElement.id);
+            let column=columns.indexOf($(nextElement)[0].id);
+            // console.log(row, column)
+            updateBoard(row, column, 1);
+            nextElement.attr("shipType", shipSelected);
+            nextElement=$(nextElement).next();
+          }
+        }
+        else{
+          let startingLocation=getSquare($(this)[0].parentElement.id,$(this)[0].id)
+          let nextElement=$(startingLocation);
+          for(let i=0;i<shipLength;i++){
+            nextElement.addClass("shipOnGrid");
+            // console.log(nextElement);
+            let column=columns.indexOf($(nextElement)[0].id)
+            let row=rows.indexOf($(nextElement)[0].parentElement.id);
+            updateBoard(row, column, 1);
+            nextElement.attr("shipType", shipSelected);
+            nextRow=$($(nextElement)[0].parentElement);
+            nextElement=$(nextRow).prev().find("#"+(column+1))
+          }
+        }
+        if(shipSelected != ""){
+          $("#"+shipSelected).remove();
+          shipLength=0;
+          shipLength="";
+        }
+
+    })
+  }
+  //Gets rid of the "selection" color on all tiles. 
+  let clearSelection=function(){
+    $(".gridSquare").removeClass("gridSelected");
+  }
+  //Changes the shipDirection variables when the "r" key is pressed. 
+  let rotateShip=function(){
+    $(document).keyup(function(e){
+      if(e.originalEvent.key == "r"){
+        shipDirection=!shipDirection;
+        clearSelection();
+      }
+    })
+  }
+  //Creates a second "attack" grid above the placement grid. 
+  let initAttackGrid=function(){
+    for(let i=0;i<rows.length;i++){
+      $("#attackGrid").append(`<tr id="${rows[i]}"><td class="gridSquare"><strong>${rows[i]}</strong></td></tr>`)
+    }
+    for(let i=0;i<columns.length;i++){
+      $("#firstAttackRow").append(`<td class="gridSquare" id="${columns[i]}"><strong>${columns[i]}</strong></td>`)
+    }
+    for(let i=0;i<rows.length;i++){
+        for(let j=0;j<columns.length;j++){
+          $(`#${rows[i]}`).append(`<td class="gridSquare" id="${columns[j]}"></td>`)
+        }
+      }
+  }
+  //using the attack grid, selects the point that the user wants to attack
+  let selectAttackPoint=function(){
+    $("#attackGrid .gridSquare").click(function(){
+      let column=columns.indexOf($(this)[0].id)
+      let row=rows.indexOf($(this)[0].parentElement.id);
+      let attackLocation=getSquare($(this)[0].parentElement.id,$(this)[0].id)
+      // console.log(row, column); //send this through the socket
+      //TODO: Make this a socket event instead.
+      socket.emit("send coordinate", [row, column])
+    })
+  }
+    //first value is the amount of damage, next value is the damage threshold of that ship
+  let shipStatus={
+    "aircraftCarrier":[0,5],
+    "battleship":[0,4],
+    "submarine":[0, 3],
+    "cruiser":[0, 3],
+    "destroyer":[0, 2]
+  }
+  //checks to see if the selected points are hits or misses
+  let checkAttackHit=function(row, column, isHit){
+    let targetElement=$("#attackGrid").find("#"+rows[row]).find("#"+columns[column]);
+    console.log(targetElement);
+    if(isHit){
+      targetElement.addClass("attackHit");
+      updateBoard(row, column, -2)
+    }
+    else{
+      targetElement.addClass("attackMiss");
+    }
+    //send back a boolean value through socket
+    //when there is a hit, update the first value of the "shipStatus" key based off the name of the ship. If value[0]==value[1], the ship is sunk.
+    //a RED square means a hit, a LIGHTGRAY square is a miss. 
+  }
+  //Checks to see if the specified coordinates have a ship on it
+  let checkDefendHit=function(row, column){
+    //turn the square RED if the ship is hit.
+    let targetElement=$("#grid").find("#"+rows[row]).find("#"+columns[column]);
+    if($(targetElement).attr("shipType")){
+      let shipType=$(targetElement).attr("shipType");
+      shipStatus[$(targetElement).attr("shipType")][0]++;     
+      targetElement.addClass("shipHit");
+      if(checkSunk(shipType)){
+        // console.log(shipType+" sunk!");
+        socket.emit("sunk signal", shipType)
+      }
+      // checkAttackHit(row, column, true);
+    }
+    else{
+      // checkAttackHit(row, column, false);
+    }
+    // console.log(shipStatus);
+  }
+  //checks to see if a ship is sunk
+  let checkSunk=function(shipType){
+    return shipStatus[shipType][0] == shipStatus[shipType][1];
+  }
+  let resetAttackGrid=function(){
+    $("#attackGrid .gridSquare").removeClass("attackMiss");
+    $("#attackGrid .gridSquare").removeClass("attackHit");
+  }
+  let sendReadySignal=function(){
+    //send the ready signal to the other client
+    $("#readyButton").click(function(){
+      //send signal through socket
+
+      socket.emit("player ready", true);
+    })
+  }
+  let checkHit=function(row, column){
+    let targetElement=$("#grid").find("#"+rows[row]).find("#"+columns[column]);
+    if(targetElement.attr("shipType")){
+     return true; 
+    }
+    else{
+      return false;
+    }
+  }
+  board=[
+  [0,0,0,0,0,0,0,0,0,0],
+  [0,0,0,0,0,0,0,0,0,0],
+  [0,0,0,0,0,0,0,0,0,0],
+  [0,0,0,0,0,0,0,0,0,0],
+  [0,0,0,0,0,0,0,0,0,0],
+  [0,0,0,0,0,0,0,0,0,0],
+  [0,0,0,0,0,0,0,0,0,0],
+  [0,0,0,0,0,0,0,0,0,0],
+  [0,0,0,0,0,0,0,0,0,0],
+  [0,0,0,0,0,0,0,0,0,0]]
+  //Updates the board variable. The board variable is a 2d array of numbers.
+  //1=has a ship that is not hit
+  //-1=has a ship that is hit
+  //0=empty space
+  let updateBoard=function(row, column, modifier){
+    board[row][column]+=modifier;
+    // console.log(board);
+  }
+  let changePlayerBoard=function(board){
+
+  }
+  //sends a board through the socket. 
+  let sendBoard=function(){
+    socket.emit("update board", board);
+  }
+  $(document).ready(function(){
+    console.log("Ready!");
+    initGrid();
+    initAttackGrid();
+    selectShip();
+    placeShip();
+    rotateShip();
+    selectAttackPoint();
+    socket.on("send attack", function(coordinate){
+      checkDefendHit(coordinate[0], coordinate[1])
+      console.log("player 1 got an attack!")
+      socket.emit("send hit status", {isHit:checkHit(coordinate[0],coordinate[1]), 
+            coordinates:[coordinate[0], coordinate[1]]
+            });
+    })
+    socket.on("send hit status", function(data){
+      console.log(data.isHit ? "Player 2: Hit" : "Player 2: Miss");
+      checkAttackHit(data.coordinates[0], data.coordinates[1], data.isHit);
+    })
+    socket.on("sunk signal", function(shipType){
+      switch(shipType){
+        case "aircraftCarrier":
+          alert("Player 2's Aircraft Carrier has been sunk!")
+          break;
+        case "battleship":
+          alert("Player 2's Battleship has been sunk!")
+          break;
+        case "submarine":
+          alert("Player 2's Submarine has been sunk!")
+          break;
+        case "cruiser":
+          alert("Player 2's Cruiser has been sunk!")
+          break;
+        case "destroyer":
+          alert("Player 2's Destroyer has been sunk!")
+          break;
+      }
+    })
+    socket.on("player ready", function(readyStatus){
+      if(readyStatus){
+        $("#readyButton").attr("disabled", "disabled");
+        $("#readyText").text("Ready!");
+        $("#attackGrid").removeClass("disabled");
+        resetAttackGrid();
+      }
+    })
+  })
+</script>

@@ -1,0 +1,72 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Battleship Lobby</title>
+    <style>
+    </style>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+  </head>
+  <body>
+        <label for="name-submission">Enter your name:</label>
+        <input id="nameInput" name="name-submission">
+        <button id="nameSubmitButton">Submit Name</button>
+        <p id="gameRequest"></p>
+        <ul id="lobbyList">
+            
+        </ul>
+        <a href="/player1">DEBUG: join player 1</a><br>
+        <a href="/player2">DEBUG: join player 2</a>
+  </body>
+</html>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+    let socket=io("/lobby");
+    let username="";
+    let submitName=function(){
+        $("#nameSubmitButton").click(function(){
+            let name=$("#nameInput").val();
+            username=name;
+            console.log("Adding "+name+"...");
+            socket.emit("new player", name);
+            $("#nameSubmitButton").attr("disabled", "disabled")
+        })
+    }
+    let updateList=function(playerList){
+        $("#lobbyList").empty();
+        for(let i=0;i<playerList.length;i++){
+            if(playerList[i] == username){
+                $("#lobbyList").append(
+                    `<li>${playerList[i]}</li>`
+                );
+            }
+            else{
+                $("#lobbyList").append(
+                    `<li>${playerList[i]} <button id="requestGame">Request Game</button></li>`
+                );
+            }
+
+        }
+    }
+    let requestGame=function(){
+        console.log("requestGame() called!");
+        $(document).on('click', '#requestGame', function(){
+            console.log("Request Game clicked!")
+            let target=$($(this)[0].parentElement).text()
+            target=target.substring(0, target.indexOf("Request Game"));
+            console.log(target);
+            socket.emit("request game", target, username);
+        })
+    }
+   $(document).ready(function(){
+        submitName();
+        requestGame();
+        socket.on("update list", function(playerList){
+            updateList(playerList);
+        })
+        socket.on("request game", function(username){
+            let wantsGame=confirm(username+" wants to play a game.")
+            socket.emit("confirm game", wantsGame);
+        })
+    })
+
+</script>
